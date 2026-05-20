@@ -14,7 +14,7 @@ function ParamRow({ param, onChange, onRemove }) {
   );
 }
 
-export default function RequestConfig({ method, setMethod, queryParams, setQueryParams, headers, setHeaders }) {
+export default function RequestConfig({ method, setMethod, queryParams, setQueryParams, headers, setHeaders, postBody, setPostBody }) {
   const addParam = (setter) => setter(p => [...p, { id: Date.now(), key: '', value: '' }]);
   const update = (setter, id, val) => setter(p => p.map(x => x.id === id ? val : x));
   const remove = (setter, id) => setter(p => p.filter(x => x.id !== id));
@@ -63,6 +63,24 @@ export default function RequestConfig({ method, setMethod, queryParams, setQuery
           {headers.map(h => <ParamRow key={h.id} param={h} onChange={v => update(setHeaders, h.id, v)} onRemove={() => remove(setHeaders, h.id)} />)}
         </div>
       </div>
+
+      {/* Request Body (POST/PUT) */}
+      {(method === 'POST' || method === 'PUT') && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Request Body</span>
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">JSON</span>
+          </div>
+          <textarea
+            value={postBody}
+            onChange={e => setPostBody(e.target.value)}
+            rows={5}
+            spellCheck={false}
+            className="w-full font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder='{"key": "value"}'
+          />
+        </div>
+      )}
     </div>
   );
 }

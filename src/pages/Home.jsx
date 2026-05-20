@@ -41,6 +41,7 @@ export default function Home() {
   const [status, setStatus] = useState({});
   const [meta, setMeta] = useState({});
   const [mockMode, setMockMode] = useState(false);
+  const [postBody, setPostBody] = useState('{\n  "key": "value"\n}');
   const abortRef = useRef(null);
   const requestIdRef = useRef(0);
   const { history, addEntry, clearHistory } = useHistory();
@@ -71,7 +72,7 @@ export default function Home() {
       setResult(mockResult);
       setStatus(s => ({ ...s, [activeApi]: 'success' }));
       setMeta(m => ({ ...m, [activeApi]: { latency: Math.round(600 + Math.random() * 400), size, statusCode: 200 } }));
-      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl() });
+      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers });
       return;
     }
 
@@ -80,7 +81,8 @@ export default function Home() {
     const start = performance.now();
     try {
       const fetchHeaders = Object.fromEntries(headers.filter(h => h.key && h.value).map(h => [h.key, h.value]));
-      const res = await fetch(buildUrl(), { method, signal: controller.signal, headers: fetchHeaders });
+      const body = ['POST', 'PUT'].includes(method) ? postBody : undefined;
+      const res = await fetch(buildUrl(), { method, signal: controller.signal, headers: fetchHeaders, body });
       if (currentId !== requestIdRef.current) return;
       const latency = Math.round(performance.now() - start);
       const text = await res.text();
@@ -90,7 +92,7 @@ export default function Home() {
       setResult(data);
       setStatus(s => ({ ...s, [activeApi]: res.ok ? 'success' : 'error' }));
       setMeta(m => ({ ...m, [activeApi]: { latency, size, statusCode: res.status } }));
-      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl() });
+      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers });
     } catch (err) {
       if (currentId !== requestIdRef.current) return;
       if (err.name === 'AbortError') {
@@ -109,6 +111,8 @@ export default function Home() {
     if (entry.api) setActiveApi(entry.api);
     if (entry.option) setSelectedOption(entry.option);
     if (entry.method) setMethod(entry.method);
+    if (entry.queryParams) setQueryParams(entry.queryParams);
+    if (entry.headers) setHeaders(entry.headers);
   };
 
   // Keyboard shortcut
@@ -163,7 +167,7 @@ export default function Home() {
               <ApiSpecificInput apiType={activeApi} value={selectedOption} onChange={setSelectedOption} />
             </div>
 
-            <RequestConfig method={method} setMethod={setMethod} queryParams={queryParams} setQueryParams={setQueryParams} headers={headers} setHeaders={setHeaders} />
+            <RequestConfig method={method} setMethod={setMethod} queryParams={queryParams} setQueryParams={setQueryParams} headers={headers} setHeaders={setHeaders} postBody={postBody} setPostBody={setPostBody} />
 
             {/* URL preview */}
             {selectedOption && (
@@ -181,7 +185,7 @@ export default function Home() {
               history={history} clearHistory={clearHistory}
               presets={presets} savePreset={savePreset} deletePreset={deletePreset}
               onLoad={handleLoad}
-              currentRequest={{ api: activeApi, option: selectedOption, method }}
+              currentRequest={{ api: activeApi, option: selectedOption, method, queryParams, headers }}
             />
           </div>
 

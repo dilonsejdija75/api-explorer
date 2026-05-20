@@ -41,7 +41,7 @@ export default function ResponsePanel({ result, status, meta, activeApi, onAbort
         <div className="flex items-center gap-3 flex-wrap">
           {meta?.statusCode && <StatusBadge code={meta.statusCode} />}
           {meta?.latency && <span className="text-xs text-muted-foreground font-mono">{meta.latency}ms</span>}
-          {meta?.size && <span className="text-xs text-muted-foreground font-mono">{meta.size}KB</span>}
+          {meta?.size && <span className="text-xs text-muted-foreground font-mono">{meta.size}KB · {Math.round(meta.size * 1024)}B</span>}
           {/* View toggle */}
           {result && status === 'success' && (
             <div className="flex rounded-md border overflow-hidden">
