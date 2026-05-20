@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Button } from '@/components/ui/button';
 import { Zap, FlaskConical } from 'lucide-react';
 import ApiCard from '../components/ApiCard';
+import ApiSpecificInput from '../components/ApiSpecificInput';
 import RequestConfig from '../components/RequestConfig';
 import ResponsePanel from '../components/ResponsePanel';
 import RequestHistory, { useHistory, usePresets } from '../components/RequestHistory';
@@ -14,37 +15,18 @@ const API_CONFIG = {
     name: 'PokéAPI',
     icon: '⚡',
     description: 'Fetch Pokémon data by name or ID',
-    options: [
-      { label: 'Pikachu', value: 'pikachu' },
-      { label: 'Charizard', value: 'charizard' },
-      { label: 'Mewtwo', value: 'mewtwo' },
-      { label: 'Eevee', value: 'eevee' },
-      { label: 'Snorlax', value: 'snorlax' },
-    ],
     buildUrl: (v) => `https://pokeapi.co/api/v2/pokemon/${v}`,
   },
   cards: {
     name: 'Deck of Cards',
     icon: '🃏',
     description: 'Draw cards from a shuffled deck',
-    options: [
-      { label: 'Draw 1 Card', value: '1' },
-      { label: 'Draw 3 Cards', value: '3' },
-      { label: 'Draw 5 Cards', value: '5' },
-    ],
     buildUrl: (v) => `https://deckofcardsapi.com/api/deck/new/draw/?count=${v}`,
   },
   dogs: {
     name: 'Dog CEO',
     icon: '🐕',
     description: 'Random dog images by breed',
-    options: [
-      { label: 'Random Dog', value: 'random' },
-      { label: 'Husky', value: 'husky' },
-      { label: 'Corgi', value: 'corgi' },
-      { label: 'Labrador', value: 'labrador' },
-      { label: 'Poodle', value: 'poodle' },
-    ],
     buildUrl: (v) => v === 'random' ? 'https://dog.ceo/api/breeds/image/random' : `https://dog.ceo/api/breed/${v}/images/random`,
   },
 };
@@ -178,14 +160,7 @@ export default function Home() {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Endpoint</label>
-              <Select value={selectedOption} onValueChange={setSelectedOption}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Choose ${config.name} option…`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {config.options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <ApiSpecificInput apiType={activeApi} value={selectedOption} onChange={setSelectedOption} />
             </div>
 
             <RequestConfig method={method} setMethod={setMethod} queryParams={queryParams} setQueryParams={setQueryParams} headers={headers} setHeaders={setHeaders} />
