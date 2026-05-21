@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -78,19 +80,62 @@ export default function ApiSpecificInput({ apiType, value, onChange }) {
   }
 
   if (apiType === 'dogs') {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [recent, setRecent] = useState(() => {
+      try { return JSON.parse(localStorage.getItem('dog_ceo_recent') || '[]'); } catch { return []; }
+    });
+
+    const filtered = DOG_BREEDS.filter(b => formatBreedLabel(b).toLowerCase().includes(searchTerm.toLowerCase()));
+    const updateRecent = (breed) => {
+      if (breed === 'random') return;
+      const next = [breed, ...recent.filter(r => r !== breed)].slice(0, 3);
+      setRecent(next);
+      localStorage.setItem('dog_ceo_recent', JSON.stringify(next));
+    };
+
+    const handleSelect = (breed) => {
+      updateRecent(breed);
+      onChange(breed);
+    };
+
     return (
-      <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground">Select breed ({DOG_BREEDS.length - 1} breeds available)</label>
-        <Select value={value} onValueChange={onChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Choose a breed…" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60">
-            {DOG_BREEDS.map(b => (
-              <SelectItem key={b} value={b}>{formatBreedLabel(b)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" className="h-9" onClick={() => handleSelect('random')}>Random Dog</Button>
+            <Input
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Filter breeds…"
+              className="min-w-[12rem]"
+            />
+          </div>
+          {recent.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Recent:</span>
+              {recent.map(b => (
+                <Button key={b} variant={b === value ? 'secondary' : 'ghost'} size="sm" className="h-8 text-[11px]" onClick={() => handleSelect(b)}>
+                  {formatBreedLabel(b)}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Select breed ({DOG_BREEDS.length - 1} breeds available)</label>
+          <Select value={value} onValueChange={handleSelect}>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a breed…" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {filtered.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">No breeds match your search.</div>
+              ) : filtered.map(b => (
+                <SelectItem key={b} value={b}>{formatBreedLabel(b)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     );
   }

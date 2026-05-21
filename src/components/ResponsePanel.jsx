@@ -15,7 +15,7 @@ function StatusBadge({ code }) {
 }
 
 export default function ResponsePanel({ result, status, meta, activeApi, onAbort, mockMode }) {
-  const [view, setView] = useState('raw');
+  const [view, setView] = useState('card');
 
   const copy = () => {
     navigator.clipboard.writeText(JSON.stringify(result, null, 2));
@@ -71,18 +71,20 @@ export default function ResponsePanel({ result, status, meta, activeApi, onAbort
       <div className="p-4 min-h-[200px]">
         {status === 'loading' && <LoadingSkeleton />}
 
-        {status === 'error' && result && (
+        {status === 'error' && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-2">
             <p className="text-sm font-semibold text-red-700">
-              {result.error === 'Failed to fetch' ? 'Network Error — check your connection or CORS settings' :
-               result.error?.includes('429') ? 'Rate Limit Exceeded (429) — try again in a moment' :
-               result.error?.includes('404') ? 'Not Found (404) — the resource doesn\'t exist' :
-               result.error || 'An unexpected error occurred'}
+              {result?.error === 'Failed to fetch' ? 'Network Error — check your connection or CORS settings' :
+               result?.error?.includes('429') ? 'Rate Limit Exceeded (429) — try again in a moment' :
+               result?.error?.includes('404') ? 'Not Found (404) — the resource doesn\'t exist' :
+               result?.error || 'An unexpected error occurred'}
             </p>
-            <details className="text-xs text-red-600">
-              <summary className="cursor-pointer">Details</summary>
-              <pre className="mt-2 font-mono">{JSON.stringify(result, null, 2)}</pre>
-            </details>
+            {result && (
+              <details className="text-xs text-red-600">
+                <summary className="cursor-pointer">Details</summary>
+                <pre className="mt-2 font-mono">{JSON.stringify(result, null, 2)}</pre>
+              </details>
+            )}
           </div>
         )}
 

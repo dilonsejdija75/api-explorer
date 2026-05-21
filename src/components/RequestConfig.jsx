@@ -18,6 +18,12 @@ export default function RequestConfig({ method, setMethod, queryParams, setQuery
   const addParam = (setter) => setter(p => [...p, { id: Date.now(), key: '', value: '' }]);
   const update = (setter, id, val) => setter(p => p.map(x => x.id === id ? val : x));
   const remove = (setter, id) => setter(p => p.filter(x => x.id !== id));
+  const bodyIsValid = ['POST', 'PUT'].includes(method)
+    ? (() => {
+        if (!postBody.trim()) return false;
+        try { JSON.parse(postBody); return true; } catch { return false; }
+      })()
+    : true;
 
   return (
     <div className="border rounded-xl p-4 space-y-4 bg-card">
@@ -40,9 +46,14 @@ export default function RequestConfig({ method, setMethod, queryParams, setQuery
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Query Params</span>
-          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => addParam(setQueryParams)}>
-            <Plus className="h-3 w-3" />Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => setQueryParams([])} disabled={queryParams.length === 0}>
+              Clear
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => addParam(setQueryParams)}>
+              <Plus className="h-3 w-3" />Add
+            </Button>
+          </div>
         </div>
         <div className="space-y-1.5">
           {queryParams.length === 0 && <p className="text-xs text-muted-foreground italic">No query params</p>}
@@ -54,9 +65,14 @@ export default function RequestConfig({ method, setMethod, queryParams, setQuery
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Headers</span>
-          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => addParam(setHeaders)}>
-            <Plus className="h-3 w-3" />Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => setHeaders([])} disabled={headers.length === 0}>
+              Clear
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => addParam(setHeaders)}>
+              <Plus className="h-3 w-3" />Add
+            </Button>
+          </div>
         </div>
         <div className="space-y-1.5">
           {headers.length === 0 && <p className="text-xs text-muted-foreground italic">No custom headers</p>}
@@ -76,9 +92,12 @@ export default function RequestConfig({ method, setMethod, queryParams, setQuery
             onChange={e => setPostBody(e.target.value)}
             rows={5}
             spellCheck={false}
-            className="w-full font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+            className={`w-full font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-y focus:outline-none focus:ring-2 focus:ring-ring ${!bodyIsValid ? 'border-red-300 bg-red-50' : ''}`}
             placeholder='{"key": "value"}'
           />
+          {!bodyIsValid && (
+            <p className="mt-2 text-xs text-red-600">Invalid JSON body. Please correct the syntax before sending.</p>
+          )}
         </div>
       )}
     </div>

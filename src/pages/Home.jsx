@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Zap, FlaskConical } from 'lucide-react';
@@ -42,10 +42,17 @@ export default function Home() {
   const [meta, setMeta] = useState({});
   const [mockMode, setMockMode] = useState(false);
   const [postBody, setPostBody] = useState('{\n  "key": "value"\n}');
+  const [discardCount, setDiscardCount] = useState(0);
   const abortRef = useRef(null);
   const requestIdRef = useRef(0);
   const { history, addEntry, clearHistory } = useHistory();
   const { presets, savePreset, deletePreset } = usePresets();
+
+  const isBodyJsonValid = useMemo(() => {
+    if (!['POST', 'PUT'].includes(method)) return true;
+    if (!postBody.trim()) return false;
+    try { JSON.parse(postBody); return true; } catch { return false; }
+  }, [method, postBody]);
 
   const buildUrl = useCallback(() => {
     const config = API_CONFIG[activeApi];
@@ -72,7 +79,7 @@ export default function Home() {
       setResult(mockResult);
       setStatus(s => ({ ...s, [activeApi]: 'success' }));
       setMeta(m => ({ ...m, [activeApi]: { latency: Math.round(600 + Math.random() * 400), size, statusCode: 200 } }));
-      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers });
+      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers, postBody });
       return;
     }
 
@@ -90,9 +97,10 @@ export default function Home() {
       try { data = JSON.parse(text); } catch { data = { raw: text }; }
       const size = (new Blob([text]).size / 1024).toFixed(2);
       setResult(data);
+      if (activeApi === 'cards') setDiscardCount(0);
       setStatus(s => ({ ...s, [activeApi]: res.ok ? 'success' : 'error' }));
-      setMeta(m => ({ ...m, [activeApi]: { latency, size, statusCode: res.status } }));
-      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers });
+      setMeta(m => ({ ...m, [activeApi]: { latency, size, statusCode: res.status, remaining: data.remaining } }));
+      addEntry({ api: activeApi, option: selectedOption, method, url: buildUrl(), queryParams, headers, postBody });
     } catch (err) {
       if (currentId !== requestIdRef.current) return;
       if (err.name === 'AbortError') {
@@ -107,13 +115,48 @@ export default function Home() {
 
   const handleAbort = () => { abortRef.current?.abort(); };
 
+  const handleDrawCard = async () => {
+    if (activeApi !== 'cards' || !result?.deck_id || status[activeApi] === 'loading') return;
+    const deckId = result.deck_id;
+    setStatus(s => ({ ...s, [activeApi]: 'loading' }));
+    try {
+      const res = await fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=1`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to draw card');
+      setResult(prev => prev ? ({ ...prev, cards: [...prev.cards, ...data.cards], remaining: data.remaining }) : data);
+      setMeta(m => ({ ...m, [activeApi]: { ...m[activeApi], remaining: data.remaining } }));
+      setStatus(s => ({ ...s, [activeApi]: 'success' }));
+      toast.success('Drew one more card');
+    } catch (err) {
+      setStatus(s => ({ ...s, [activeApi]: 'error' }));
+      setResult({ error: err.message });
+    }
+  };
+
+  const handleDiscardCard = (code) => {
+    if (activeApi !== 'cards' || !result?.cards) return;
+    setResult(prev => prev ? ({ ...prev, cards: prev.cards.filter(c => c.code !== code) }) : prev);
+    setDiscardCount(count => count + 1);
+  };
+
+  const handleRemoveCard = (code) => {
+    if (activeApi !== 'cards' || !result?.cards) return;
+    setResult(prev => prev ? ({ ...prev, cards: prev.cards.filter(c => c.code !== code) }) : prev);
+  };
+
   const handleLoad = (entry) => {
     if (entry.api) setActiveApi(entry.api);
     if (entry.option) setSelectedOption(entry.option);
     if (entry.method) setMethod(entry.method);
     if (entry.queryParams) setQueryParams(entry.queryParams);
     if (entry.headers) setHeaders(entry.headers);
+    if (entry.postBody) setPostBody(entry.postBody);
   };
+
+  useEffect(() => {
+    if (activeApi !== 'dogs' || method !== 'GET' || !selectedOption) return;
+    fetchData();
+  }, [activeApi, selectedOption, method, fetchData]);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -176,7 +219,7 @@ export default function Home() {
               </div>
             )}
 
-            <Button onClick={fetchData} disabled={!selectedOption || currentStatus === 'loading'} className="w-full gap-2">
+            <Button onClick={fetchData} disabled={!selectedOption || currentStatus === 'loading' || !isBodyJsonValid} className="w-full gap-2">
               {currentStatus === 'loading' ? <Zap className="h-4 w-4 animate-pulse" /> : <Zap className="h-4 w-4" />}
               {currentStatus === 'loading' ? 'Fetching…' : 'Send Request'}
             </Button>
@@ -185,13 +228,24 @@ export default function Home() {
               history={history} clearHistory={clearHistory}
               presets={presets} savePreset={savePreset} deletePreset={deletePreset}
               onLoad={handleLoad}
-              currentRequest={{ api: activeApi, option: selectedOption, method, queryParams, headers }}
+              currentRequest={{ api: activeApi, option: selectedOption, method, queryParams, headers, postBody }}
             />
           </div>
 
           {/* Right: Response */}
           <div className="lg:col-span-2">
-            <ResponsePanel result={result} status={currentStatus} meta={currentMeta} activeApi={activeApi} onAbort={handleAbort} mockMode={mockMode} />
+            <ResponsePanel
+              result={result}
+              status={currentStatus}
+              meta={currentMeta}
+              activeApi={activeApi}
+              onAbort={handleAbort}
+              mockMode={mockMode}
+              onDrawCard={handleDrawCard}
+              onDiscardCard={handleDiscardCard}
+              onRemoveCard={handleRemoveCard}
+              discardCount={discardCount}
+            />
           </div>
         </div>
       </div>

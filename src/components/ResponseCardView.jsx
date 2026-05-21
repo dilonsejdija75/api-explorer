@@ -1,4 +1,20 @@
-export default function ResponseCardView({ data, apiType }) {
+import { useState } from 'react';
+import { Play, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+const SUIT_STYLE = {
+  SPADES: 'text-slate-900',
+  CLUBS: 'text-slate-900',
+  HEARTS: 'text-red-600',
+  DIAMONDS: 'text-red-600',
+};
+
+function formatCardLabel(card) {
+  return `${card.value} of ${card.suit}`;
+}
+
+export default function ResponseCardView({ data, apiType, onDrawCard, onRemoveCard, onDiscardCard, discardCount }) {
+  const [flipped, setFlipped] = useState(new Set());
   if (apiType === 'pokemon' && data.name) {
     const sprite = data.sprites?.front_default;
     return (
@@ -36,18 +52,108 @@ export default function ResponseCardView({ data, apiType }) {
     );
   }
 
+  const toggleFlip = (code) => {
+    setFlipped(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  const handleCardClick = (card, event) => {
+    if (event.shiftKey && onDrawCard) {
+      onDrawCard();
+      return;
+    }
+    toggleFlip(card.code);
+  };
+
+  const handleCardDoubleClick = (card, event) => {
+    event.stopPropagation();
+    if (onRemoveCard) onRemoveCard(card.code);
+  };
+
   if (apiType === 'cards' && data.cards) {
     return (
       <div className="py-6">
-        <p className="text-xs text-muted-foreground mb-4 text-center">Deck: <span className="font-mono">{data.deck_id}</span> · {data.remaining} remaining</p>
-        <div className="flex flex-wrap gap-3 justify-center">
-          {data.cards.map((card, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <img src={card.image} alt={card.code} className="w-20 rounded shadow-md hover:scale-105 transition-transform" onError={e => e.target.style.display='none'} />
-              <span className="text-xs text-muted-foreground">{card.value} of {card.suit}</span>
-            </div>
-          ))}
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <p className="text-xs text-muted-foreground">Deck: <span className="font-mono">{data.deck_id}</span> · {data.remaining} remaining</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs bg-muted px-2 py-1 rounded-full">Discard pile: {discardCount}</span>
+            {onDrawCard && (
+              <Button size="sm" onClick={onDrawCard} className="h-8">Draw another card</Button>
+            )}
+          </div>
         </div>
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 justify-center">
+          {data.cards.map((card) => {
+            const isFlipped = flipped.has(card.code);
+            return (
+              <div
+                key={card.code}
+                title={`${formatCardLabel(card)} • ${card.code}`}
+                className="relative cursor-pointer select-none"
+                onClick={(e) => handleCardClick(card, e)}
+                onDoubleClick={(e) => handleCardDoubleClick(card, e)}
+              >
+                <div className="relative h-52 transition-transform duration-500 ease-out" style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+                  <div className="absolute inset-0 rounded-3xl border border-border bg-white shadow-lg overflow-hidden" style={{ backfaceVisibility: 'hidden' }}>
+                    <div className="relative h-full w-full">
+                      {card.image ? (
+                        <img src={card.image} alt={card.code} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-slate-100 p-4">
+                          <div className="text-center">
+                            <p className="text-3xl font-bold">{card.value}</p>
+                            <p className={`text-sm uppercase tracking-[0.25em] ${SUIT_STYLE[card.suit]}`}>{card.suit}</p>
+                          </div>
+                        </div>
+                      )}
+                      {card.image && <div className="absolute inset-0 bg-black/20" />}
+                      <div className="absolute inset-0 flex flex-col justify-between p-4 text-white">
+                        <div className="flex justify-between items-start text-xs font-semibold">
+                          <span className={`${SUIT_STYLE[card.suit]} text-lg`}>{card.suit.charAt(0)}</span>
+                          <span className="text-white/80 text-[11px]">{card.code}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 text-center">
+                          <p className="text-3xl font-bold drop-shadow-sm">{card.value}</p>
+                          <p className={`text-sm uppercase tracking-[0.25em] ${SUIT_STYLE[card.suit]} drop-shadow-sm`}>{card.suit}</p>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-white/90">
+                          <span>Click to flip</span>
+                          <span>Shift+click to draw</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 rounded-3xl border border-border bg-slate-900 text-white shadow-lg p-4 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                    <p className="text-sm uppercase tracking-[0.25em] text-muted-foreground mb-3">Card Back</p>
+                    <div className="grid grid-cols-3 gap-1">
+                      {Array.from({ length: 9 }).map((_, idx) => (
+                        <span key={idx} className="h-2 w-2 rounded-full bg-white/60" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span className="truncate">{formatCardLabel(card)}</span>
+                  <div className="flex items-center gap-1">
+                    {onDiscardCard && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); onDiscardCard(card.code); }} className="rounded-full border border-border p-1 hover:bg-muted">
+                        <Play className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (onRemoveCard) onRemoveCard(card.code); }} className="rounded-full border border-border p-1 hover:bg-muted">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">Double-click a card to remove it from your hand; use the play button to discard.</p>
       </div>
     );
   }
